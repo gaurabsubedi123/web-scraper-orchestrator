@@ -20,9 +20,9 @@ A universal web scraping system that manages multiple website scrapers with dedu
 1. **Install Dependencies**
 ```bash
    pip install requests beautifulsoup4
-
-## Run fda scrappers
-python base_scraper.py --start-date yyyy-mm-dd --end-date yyyy-mm-dd --scraper fda_scraper
-
-## Run All Scrappers
-python base_scraper.py --start-date yyyy-mm-dd --end-date yyyy-mm-dd
+2. **Run FDA Scrapper**
+```bash
+   python base_scraper.py --start-date yyyy-mm-dd --end-date yyyy-mm-dd --scraper fda_scraper
+2. **Run All Scrappers**
+```bash
+   python base_scraper.py --start-date yyyy-mm-dd --end-date yyyy-mm-dd
