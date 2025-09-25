@@ -1,0 +1,36 @@
+# Web scraping core dependencies
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Data handling
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Date/time utilities
+python-dateutil>=2.8.0
+
+# JSON handling (usually built-in, but for completeness)
+simplejson>=3.19.0
+
+# URL parsing (built-in but listing for clarity)
+urllib3>=2.0.0
+
+# Additional utilities
+pathlib2>=2.3.0; python_version < "3.4"
+
+# Optional: For better HTML parsing performance
+html5lib>=1.1
+
+# Optional: For async operations (if you add async support later)
+aiohttp>=3.8.0
+asyncio>=3.4.3; python_version < "3.7"
+
+# Optional: For more robust HTTP handling
+httpx>=0.24.0
+
+# Development dependencies (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
