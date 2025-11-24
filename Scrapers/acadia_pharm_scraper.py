@@ -18,6 +18,8 @@ from selenium.common.exceptions import TimeoutException
 from abc import ABC, abstractmethod
 
 
+
+
 class BaseScraperInterface(ABC):
     @abstractmethod
     def get_scraper_info(self) -> Dict[str, str]:
