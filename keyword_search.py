@@ -24,6 +24,8 @@ class KeywordSearcher:
             'summary': {},
             'results_by_scraper': {}
         }
+        # Track duplicates
+        self.skipped_duplicates = 0
 
     def load_master_data(self) -> bool:
         """Load the master JSON file"""
@@ -125,7 +127,7 @@ class KeywordSearcher:
         case_sensitive: bool = False
     ) -> Dict[str, Any]:
         """
-        Search announcements for keywords
+        Search announcements for keywords WITH DEDUPLICATION
 
         Args:
             keywords: List of keywords to search for
@@ -153,14 +155,25 @@ class KeywordSearcher:
         self.search_results['scraping_history'] = self.master_data.get('scraping_history', {})
 
         total_matches = 0
+        self.skipped_duplicates = 0
+        
+        # Track seen URLs to avoid duplicates
+        seen_urls = set()
 
         # Search through each scraper's data
         for scraper_name, scraper_data in self.master_data.get('results_by_scraper', {}).items():
             matched_announcements = []
             matched_full_content = []
 
-            # Search announcements
+            # Search announcements with deduplication
             for announcement in scraper_data.get('announcements', []):
+                url = announcement.get('url', '')
+                
+                # Skip if we've seen this URL before (deduplication)
+                if url and url in seen_urls:
+                    self.skipped_duplicates += 1
+                    continue
+                
                 found, matches_by_field = self._search_in_item(
                     announcement, keywords, fields, mode, case_sensitive
                 )
@@ -169,10 +182,21 @@ class KeywordSearcher:
                     announcement_copy = announcement.copy()
                     announcement_copy['_search_matches'] = matches_by_field
                     matched_announcements.append(announcement_copy)
+                    
+                    # Mark URL as seen
+                    if url:
+                        seen_urls.add(url)
 
-            # Search full content (using same or extended fields)
+            # Search full content with deduplication (using same or extended fields)
             content_fields = fields + ['full_content']
             for content in scraper_data.get('full_content', []):
+                url = content.get('url', '')
+                
+                # Skip if we've seen this URL before (deduplication)
+                if url and url in seen_urls:
+                    self.skipped_duplicates += 1
+                    continue
+                
                 found, matches_by_field = self._search_in_item(
                     content, keywords, content_fields, mode, case_sensitive
                 )
@@ -180,6 +204,10 @@ class KeywordSearcher:
                     content_copy = content.copy()
                     content_copy['_search_matches'] = matches_by_field
                     matched_full_content.append(content_copy)
+                    
+                    # Mark URL as seen
+                    if url:
+                        seen_urls.add(url)
 
             # Only include scrapers that have matches
             if matched_announcements or matched_full_content:
@@ -195,7 +223,7 @@ class KeywordSearcher:
                 }
                 total_matches += len(matched_announcements) + len(matched_full_content)
 
-        # Update summary
+        # Update summary with deduplication stats
         self.search_results['summary'] = {
             'total_scrapers_with_matches': len(self.search_results['results_by_scraper']),
             'total_matched_announcements': sum(
@@ -207,6 +235,8 @@ class KeywordSearcher:
                 for data in self.search_results['results_by_scraper'].values()
             ),
             'total_matches': total_matches,
+            'skipped_duplicates': self.skipped_duplicates,
+            'unique_urls_found': len(seen_urls),
             'generated_at': datetime.now().isoformat()
         }
 
@@ -229,6 +259,7 @@ class KeywordSearcher:
             json.dump(self.search_results, f, indent=2, ensure_ascii=False)
         print(f"Keyword master file saved: {output_path}")
         print(f"Total matches: {self.search_results['summary']['total_matches']}")
+        print(f"Skipped duplicates: {self.search_results['summary']['skipped_duplicates']}")
 
         # 2) ARCHIVE MASTER FILE (timestamped)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -395,6 +426,8 @@ class KeywordSearcher:
             f"Matched announcements: {summary.get('total_matched_announcements', 0)}",
             f"Matched full content: {summary.get('total_matched_full_content', 0)}",
             f"Total matches: {summary.get('total_matches', 0)}",
+            f"Skipped duplicates: {summary.get('skipped_duplicates', 0)}",
+            f"Unique URLs found: {summary.get('unique_urls_found', 0)}",
             ""
         ])
 
@@ -405,21 +438,21 @@ class KeywordSearcher:
                 stats = scraper_data.get('statistics', {})
                 report_lines.extend([
                     f"\n{scraper_name}:",
-                    f" Announcements: {stats.get('matched_announcements', 0)}",
-                    f" Full content: {stats.get('matched_full_content', 0)}",
-                    f" Total: {stats.get('total_matches', 0)}"
+                    f"  Announcements: {stats.get('matched_announcements', 0)}",
+                    f"  Full content: {stats.get('matched_full_content', 0)}",
+                    f"  Total: {stats.get('total_matches', 0)}"
                 ])
 
                 # Show sample matches
                 announcements = scraper_data.get('announcements', [])[:3]
                 if announcements:
-                    report_lines.append(" Sample matches:")
+                    report_lines.append("  Sample matches:")
                     for ann in announcements:
                         title = ann.get('title', 'No title')[:60]
                         matches = ann.get('_search_matches', {})
-                        report_lines.append(f" - {title}...")
+                        report_lines.append(f"    - {title}...")
                         for field, keywords in matches.items():
-                            report_lines.append(f" [{field}]: {', '.join(keywords)}")
+                            report_lines.append(f"      [{field}]: {', '.join(keywords)}")
 
         return "\n".join(report_lines)
 
@@ -447,7 +480,7 @@ def load_keywords_from_file(file_path: str) -> List[str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Search master JSON for keywords and create filtered dataset'
+        description='Search master JSON for keywords and create filtered dataset (with deduplication)'
     )
 
     parser.add_argument(
@@ -573,3 +606,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+    #python keyword_search.py --keywords-file keywords.txt
